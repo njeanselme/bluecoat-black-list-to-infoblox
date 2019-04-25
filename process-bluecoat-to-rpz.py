@@ -1,0 +1,93 @@
+import logging
+import csv
+import re
+import ipaddress
+
+StructuredIOCs=[]
+IOCs=[]
+row={}
+line_num=0
+rpz_name=""
+view="default"
+
+with open('proxy_white-black_lists.txt', encoding='utf-8-sig') as dirtycsvfile:  # Get Data from CSV
+
+	reader=dirtycsvfile.readlines()
+	for row in reader:
+		line_num = line_num + 1
+	
+		if not row == "":
+			if re.match('define category ', row):
+				rpz_name=re.sub('define category ','',row).lower().strip()
+				
+			row = re.sub('^ *', 	'', row)
+			row = re.sub('\n', 	'', row)
+			row = re.sub('^;.*', 	'', row)
+			row = re.sub('^[\./]$', '', row)
+			row = re.sub('^define .*$', '', row)
+			row = re.sub('^end.*$', '', row)
+			
+			fields = re.split("[\;]", row , maxsplit=2)
+			
+			if len(fields) == 2:
+				comment = fields[1].strip()
+			
+			IOC=fields[0].lower().strip() # to lowercase
+
+			if not IOC == "" and not rpz_name == "":
+				
+				#fixing
+				if re.match(r"\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?) (25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?) (25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?) (25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b",IOC):
+					IOC= re.sub('\ ', '.', IOC)
+				IOC = re.sub('\.$', '', IOC)
+				IOC = re.sub('\$$', '', IOC)
+				IOC = re.sub('\?$', '', IOC)
+
+				IOCstruct={}
+				IOCstruct["IOC"]=IOC
+				IOCstruct["rpz_name"]=rpz_name
+				IOCstruct["comment"]=comment
+				IOCstruct["type"]=''
+				
+				#validating
+				if re.match(r"^\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/\d+",IOC):
+					IOCstruct["type"]='network'
+				elif re.match(r"^\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b", IOC):
+					IOCstruct["type"]='IP'
+				elif re.search("/", IOC):
+					IOCstruct["type"]='URL'
+					#print("URL: " + IOC)
+				elif re.match(r"^\*?[A-z0-9-\.]*$", IOC):
+					IOCstruct["type"]='FQDN'
+				else:
+					print("Invalid line: "+IOC+", from line:"+str(line_num)+", content: "+row)
+
+				#dedup
+				if not IOCstruct["type"] == "" and not IOCstruct["IOC"] in IOCs:
+					StructuredIOCs.append(IOCstruct)
+					IOCs.append(IOCstruct["IOC"])
+				
+#print(IOCs)
+#print(StructuredIOCs)
+
+fieldnames = ['header-responsepolicy', 'fqdn', 'comment','parent_zone','view']
+fieldnameswr1 = {'header-responsepolicy':'header-responsepolicycnamerecord', 'fqdn':'fqdn', 'comment':'comment', 'parent_zone':'parent_zone', 'view':'view'}
+fieldnameswr2 = {'header-responsepolicy':'header-responsepolicyipaddress', 'fqdn':'fqdn', 'comment':'comment', 'parent_zone':'parent_zone', 'view':'view'}
+
+with open('rpz-local-lists.csv', 'w', encoding='utf-8-sig') as csvoutput:
+	writer = csv.DictWriter(csvoutput, fieldnames=fieldnames)
+	writer.writerow(fieldnameswr1)
+	writer.writerow(fieldnameswr2)
+	for StructuredIOC in StructuredIOCs:
+	
+		if StructuredIOC["type"] == "IP":
+			responsepolicy= "responsepolicyipaddress"
+		elif StructuredIOC["type"] == "FQDN":
+			responsepolicy= "responsepolicycnamerecord"
+			
+		row={'header-responsepolicy': responsepolicy, 
+		'fqdn': StructuredIOC["IOC"] + "." + StructuredIOC["rpz_name"], 
+		'comment': StructuredIOC["comment"], 
+		'parent_zone':StructuredIOC["rpz_name"], 
+		'view':view}
+		writer.writerow(row)
