@@ -74,6 +74,7 @@ with open(sys.argv[1], encoding='utf-8-sig') as dirtycsvfile:  # Get Data from C
 				IOC = re.sub('^\.', '*.', IOC)
 				IOC = re.sub('\$$', '', IOC)
 				IOC = re.sub('\?$', '', IOC)
+				IOC = re.sub('–', '-', IOC)
 				IOC = re.sub(r'^([A-z0-9]+)$', r'*.\1', IOC)
 
 				IOCstruct={}
