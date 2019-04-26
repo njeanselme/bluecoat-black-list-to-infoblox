@@ -2,13 +2,43 @@ import logging
 import csv
 import re
 import sys
+import os
 
 StructuredIOCs=[]
 IOCs=[]
 row={}
 line_num=0
+lists=[]
 rpz_name=""
-view="default"
+
+# based on https://gist.github.com/ReedJessen/1cb97a358811f3ea154c81bbd5bd80f8
+import os
+
+def split(filehandler, delimiter=',', row_limit=10000, output_name_template='output_%s.csv', output_path='.', keep_headers=True):
+    import csv
+    reader = csv.reader(filehandler, delimiter=delimiter)
+    current_piece = 1
+    current_out_path = os.path.join(
+         output_path,
+         output_name_template  % current_piece
+    )
+    current_out_writer = csv.writer(open(current_out_path, 'w', newline=''), delimiter=delimiter)
+    current_limit = row_limit
+    if keep_headers:
+        headers = reader.__next__()
+        current_out_writer.writerow(headers)
+    for i, row in enumerate(reader):
+        if i + 1 > current_limit:
+            current_piece += 1
+            current_limit = row_limit * current_piece
+            current_out_path = os.path.join(
+               output_path,
+               output_name_template  % current_piece
+            )
+            current_out_writer = csv.writer(open(current_out_path, 'w'), delimiter=delimiter)
+            if keep_headers:
+                current_out_writer.writerow(headers)
+        current_out_writer.writerow(row)
 
 with open(sys.argv[1], encoding='utf-8-sig') as dirtycsvfile:  # Get Data from CSV
 
@@ -19,6 +49,7 @@ with open(sys.argv[1], encoding='utf-8-sig') as dirtycsvfile:  # Get Data from C
 		if not row == "":
 			if re.match('define category ', row):
 				rpz_name=re.sub('define category ','',row).lower().strip()
+				lists.append(rpz_name)
 				
 			row = re.sub('^ *', 	'', row)
 			row = re.sub('\n', 	'', row)
@@ -70,29 +101,24 @@ with open(sys.argv[1], encoding='utf-8-sig') as dirtycsvfile:  # Get Data from C
 				if (IOCstruct["type"] == "network" or IOCstruct["type"] == "IP" or IOCstruct["type"] == "FQDN") and not IOCstruct["IOC"] in IOCs:
 					StructuredIOCs.append(IOCstruct)
 					IOCs.append(IOCstruct["IOC"])
-
 				
 #print(IOCs)
 #print(StructuredIOCs)
+print(lists)
+filehandler={}
+filewriter={}
+fieldnames = ['domain']
+fieldnameswr1 = {'domain':'domain'}
 
-fieldnames = ['header-responsepolicy', 'fqdn', 'comment','parent_zone','view']
-fieldnameswr1 = {'header-responsepolicy':'header-responsepolicycnamerecord', 'fqdn':'fqdn', 'comment':'comment', 'parent_zone':'parent_zone', 'view':'view'}
-fieldnameswr2 = {'header-responsepolicy':'header-responsepolicyipaddress', 'fqdn':'fqdn', 'comment':'comment', 'parent_zone':'parent_zone', 'view':'view'}
-
-with open('rpz-local-lists.csv', 'w', encoding='utf-8-sig') as csvoutput:
-	writer = csv.DictWriter(csvoutput, fieldnames=fieldnames)
-	writer.writerow(fieldnameswr1)
-	writer.writerow(fieldnameswr2)
-	for StructuredIOC in StructuredIOCs:
+for file in lists:
+	filehandler[file] = open(file + '.csv', 'w', encoding='utf-8-sig')
+	filewriter[file] = csv.DictWriter(filehandler[file], fieldnames=fieldnames)
+	filewriter[file].writerow(fieldnameswr1)
 	
-		if StructuredIOC["type"] == "IP":
-			responsepolicy= "responsepolicyipaddress"
-		elif StructuredIOC["type"] == "FQDN":
-			responsepolicy= "responsepolicycnamerecord"
-			
-		row={'header-responsepolicy': responsepolicy, 
-		'fqdn': StructuredIOC["IOC"] + "." + StructuredIOC["rpz_name"], 
-		'comment': StructuredIOC["comment"], 
-		'parent_zone':StructuredIOC["rpz_name"], 
-		'view':view}
-		writer.writerow(row)
+for StructuredIOC in StructuredIOCs:		
+	row={'domain': StructuredIOC["IOC"]}
+	filewriter[StructuredIOC["rpz_name"]].writerow(row)
+
+for file in filehandler:
+	filehandler[file].close()
+	split(open(file+ '.csv','r'),row_limit=10000, output_name_template= file + '_%s.csv', output_path='.', keep_headers=True);

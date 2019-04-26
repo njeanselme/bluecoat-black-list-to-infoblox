@@ -1,0 +1,13 @@
+;category Exceptionlist_Enterprisedfsdf
+;group dsfsdf
+
+define category Exceptionlist_Enterprise
+
+atkins.sharepoint.com ; bdsfdsf
+www.invites.fr ; sdfsd
+adobe.io ; sdf
+
+;fdsfdsf ;sdfasfas
+
+
+end
