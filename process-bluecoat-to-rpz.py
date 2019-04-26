@@ -60,9 +60,9 @@ with open(sys.argv[1], encoding='utf-8-sig') as dirtycsvfile:  # Get Data from C
 				elif re.search("/", IOC):
 					IOCstruct["type"]='URL'
 					print("URL: " + IOC)
-				#elif re.match(r"^\*?[A-z0-9-\.]*$", IOC):
 				#fqdn validation - https://www.regextester.com/103452
-				elif re.match(r"^(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{0,62}[a-zA-Z0-9]\.)+[a-zA-Z]{2,63}$)", IOC) or re.match(r"^\*\.[A-z0-9]+", IOC):
+				#punycode validation - https://stackoverflow.com/questions/10306690/what-is-a-regular-expression-which-will-match-a-valid-domain-name-without-a-subd
+				elif re.match(r"^(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-_]{0,62}[a-zA-Z0-9]\.)+[a-zA-Z]{2,63}$)", IOC) or re.match(r"^((?!-))(xn--)?[a-z0-9][a-z0-9-_]{0,61}[a-z0-9]{0,1}\.(xn--)?([a-z0-9\-]{1,61}|[a-z0-9-]{1,30}\.(xn--)?[a-z0-9-]{2,})$", IOC) or re.match(r"^\*\.[A-z0-9]+", IOC):
 					IOCstruct["type"]='FQDN'
 				else:
 					print("Invalid line: "+IOC+", from line:"+str(line_num)+", content: "+row)
