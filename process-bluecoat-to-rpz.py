@@ -92,6 +92,13 @@ with open('rpz-local-lists.csv', 'w', encoding='utf-8-sig') as csvoutput:
 			responsepolicy= "responsepolicyipaddress"
 		elif StructuredIOC["type"] == "FQDN":
 			responsepolicy= "responsepolicycnamerecord"
+			if re.match("^(?!\*)", StructuredIOC["IOC"]):
+				row={'header-responsepolicy': responsepolicy, 
+				'fqdn': "*."+StructuredIOC["IOC"] + "." + StructuredIOC["rpz_name"], 
+				'comment': StructuredIOC["comment"], 
+				'parent_zone':StructuredIOC["rpz_name"], 
+				'view':view}
+				writer.writerow(row)
 			
 		row={'header-responsepolicy': responsepolicy, 
 		'fqdn': StructuredIOC["IOC"] + "." + StructuredIOC["rpz_name"], 
@@ -99,3 +106,4 @@ with open('rpz-local-lists.csv', 'w', encoding='utf-8-sig') as csvoutput:
 		'parent_zone':StructuredIOC["rpz_name"], 
 		'view':view}
 		writer.writerow(row)
+		
